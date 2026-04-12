@@ -5,6 +5,8 @@
 #include<stdbool.h>
 #include<string.h>
 
+#include "myfiledb.h"
+
 #define Max 100
 
 typedef struct {
@@ -22,6 +24,9 @@ typedef struct Node{
 };
 typedef struct Node Node;
 
+/*
+基础操作
+*/
 
 //初始化双链表
 void initNode(Node*& node);
@@ -54,6 +59,20 @@ void showByName(Node* node, char name[]);
 void showAll(Node* node);
 
 
+/*
+文件存储操作
+*/
+
+//序列化存Entity实体
+void saveGoodsSerialize(MYDB*& db, Entity goods);
+
+//反序列化获取Entity实体
+void getGoodsSerialize(MYDB*& db, Entity goods);
+
+
+
+
+
 int main() {
 	int switchFlag;
 	bool whileFlag=true;
@@ -63,6 +82,12 @@ int main() {
 	initNode(node);
 	int code;
 	char fname[Max];
+
+	//初始化数据库文件
+	MYDB* root;
+	initRoot(root);
+	addDB(root, "IMS");
+	MYDB* db = openDataBase(root, "IMS");
 
 	while (whileFlag) {
 		printf("\t\t商品库存管理系统\n");
@@ -124,7 +149,7 @@ int main() {
 
 
 void initNode(Node*& node) {
-	node = new Node;
+	node = (Node*)malloc(sizeof(Node));
 	node->front = NULL;
 	node->val.id = -1;
 	node->val.code = 0;
@@ -148,7 +173,7 @@ bool addEntity(Node*& node) {
 	//复用getLength 获取最新长度,让id自增；
 	int length = getLength(node);
 	//新的数据和空间
-	Node* newNode = new Node;
+	Node* newNode =(Node*)malloc(sizeof(Node));
 	Entity* val = new Entity;
 	val->id = length+1;
 	val->code = getCode(length, val->id);
@@ -343,4 +368,14 @@ bool deleteByindex(Node*& node, int number) {
 		printf("当前剩余库存：%d", node->val.number);
 		return true;
 	}
+}
+
+
+
+
+void saveGoodsSerialize(MYDB*& db, Entity goods) {
+}
+
+void getGoodsSerialize(MYDB*& db, Entity goods) {
+
 }
