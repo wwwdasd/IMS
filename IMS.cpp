@@ -73,12 +73,6 @@ void updateGoodsSerialize(MYDB*& db, Entity* goods);
 void deleteGoodsSerialize(MYDB*& db, Entity* goods);
 
 
-
-void undo() {
-
-}
-
-
 int main() {
 	int switchFlag;
 	bool whileFlag=true;
