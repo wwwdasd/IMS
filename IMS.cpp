@@ -31,17 +31,14 @@ typedef struct Node Node;
 //初始化双链表
 void initNode(Node*& node);
 
-//id自增 返回当前长度
-int getLength(Node* node);
-
 //得到当前商品的唯一编号，所有商品编号都唯一
 int getCode(int length, int id);
 
 //进货 id自增，价格大于等于0，若已存在则库存加1，成功返回 true 
-bool addEntity(Node*& node);
+bool addEntity(Node*& node, MYDB*& db);
 
 //出货 复用查询  根据id删除，库存相应减少,若库存为零则直接删除
-bool deleteByindex(Node*& node, int number);
+bool deleteByindex(Node*& node, int number, MYDB*& db);
 
 //查询 用商品名查询 返回对应对象, 未查到返回0；
 Node* findByName(Node* node,char name[]);
@@ -49,8 +46,9 @@ Node* findByName(Node* node,char name[]);
 //用商品编号查询；
 Node* findByCode(Node* node, int code);
 
+
 //修改 复用查询 根据商品编号找到对应商品,成功返回 true 
-bool modifyEntity(Node*& node,int code);
+bool modifyEntity(Node*& node, int code, MYDB*& db);
 
 //根据id输出
 void showByName(Node* node, char name[]);
@@ -64,13 +62,16 @@ void showAll(Node* node);
 */
 
 //序列化存Entity实体
-void saveGoodsSerialize(MYDB*& db, Entity goods);
+void saveGoodsSerialize(MYDB*& db, Entity* goods);
 
 //反序列化获取Entity实体
-void getGoodsSerialize(MYDB*& db, Entity goods);
+void getGoodsSerialize(MYDB*& db, Node*& node);
 
+//修改实体
+void updateGoodsSerialize(MYDB*& db, Entity* goods);
 
-
+//删除实体
+void deleteGoodsSerialize(MYDB*& db, Entity* goods);
 
 
 int main() {
@@ -89,13 +90,15 @@ int main() {
 	addDB(root, "IMS");
 	MYDB* db = openDataBase(root, "IMS");
 
+	getGoodsSerialize(db, node);
+
 	while (whileFlag) {
 		printf("\t\t商品库存管理系统\n");
 		printf("1: 进货，2：出货，3：修改商品信息，4：查看全部商品，5：查询商品，6: 退出\n");
 		scanf("%d", &switchFlag);
 		switch (switchFlag) {
 		case 1:
-			if (!addEntity(node)) {
+			if (!addEntity(node,db)) {
 				printf("添加失败\n");
 				return 1;
 			} else {
@@ -116,13 +119,13 @@ int main() {
 			printf("请输入你要出货的数量：");
 			scanf("%d", &number);
 			
-			deleteByindex(tmp, number);
+			deleteByindex(tmp, number,db);
 
 			break;
 		case 3:
 			printf("请输入要修改商品的编号");
 			scanf("%d", &code);
-			modifyEntity(node,code);
+			modifyEntity(node,code,db);
 			break;
 		case 4:
 			showAll(node);
@@ -159,19 +162,9 @@ void initNode(Node*& node) {
 	node->next = NULL;
 }
 
-int getLength(Node* node) {
-	int cnt = 0;
-	Node* tmp = node;
-	while (tmp!=NULL) {
-		cnt++;
-		tmp = tmp->next;
-	}
-	return cnt-1;
-}
-
-bool addEntity(Node*& node) {
+bool addEntity(Node*& node, MYDB*& db) {
 	//复用getLength 获取最新长度,让id自增；
-	int length = getLength(node);
+	int length = count(db);
 	//新的数据和空间
 	Node* newNode =(Node*)malloc(sizeof(Node));
 	Entity* val = new Entity;
@@ -222,11 +215,13 @@ bool addEntity(Node*& node) {
 				printf("异常退出，不保存此次新数据");
 				return false;
 			}
+			updateGoodsSerialize(db, &node->val);
 			return true;
 		}
 
 		//只修改找到对象的库存值，其余不变;
 		tmp->val.number = val->number;
+		updateGoodsSerialize(db, &node->val);
 		return true;
 	}
 
@@ -242,6 +237,7 @@ bool addEntity(Node*& node) {
 	newNode->front = p;
 	p->next = newNode;
 
+	saveGoodsSerialize(db, &node->val);
 	return true;
 }
 
@@ -288,7 +284,7 @@ int getCode(int length, int id) {
 	return result;
 }
 
-bool modifyEntity(Node*& node, int code) {
+bool modifyEntity(Node*& node, int code, MYDB*& db) {
 	Entity* val = new Entity;
 	Node* tmp = findByCode(node,code);
 	if (tmp==NULL) {
@@ -326,10 +322,11 @@ bool modifyEntity(Node*& node, int code) {
 	default:
 		break;
 	}
+	updateGoodsSerialize(db, &node->val);
 	return true;
 }
 
-bool deleteByindex(Node*& node, int number) {
+bool deleteByindex(Node*& node, int number, MYDB*& db) {
 	//优先判断库存是否充足
 	if (node->val.number<number) {
 		printf("当前库存不足，当前库存为 %d ", node->val.number);
@@ -349,13 +346,14 @@ bool deleteByindex(Node*& node, int number) {
 		case 'Y':
 		case 'y':
 			node->val.number = val->number;
-
+			updateGoodsSerialize(db, &node->val);
 			return true;
 			break;
 		case 'N':
 		case 'n':
 			node->front->next = node->next;
 			node->next = NULL;
+			deleteGoodsSerialize(db, &node->val);
 			free(node);
 			return true;
 			break;
@@ -366,6 +364,7 @@ bool deleteByindex(Node*& node, int number) {
 	} else {
 		node->val.number = val->number;
 		printf("当前剩余库存：%d", node->val.number);
+		updateGoodsSerialize(db, &node->val);
 		return true;
 	}
 }
@@ -373,9 +372,59 @@ bool deleteByindex(Node*& node, int number) {
 
 
 
-void saveGoodsSerialize(MYDB*& db, Entity goods) {
+void saveGoodsSerialize(MYDB*& db, Entity* goods) {
+
+	char key[Max];
+	sprintf(key, "goods_%d", goods->id);
+
+	char value[sizeof(Entity)];
+	sprintf(value, "id:%d,code:%d,name:%s,price:%s,number:%d", goods->id, goods->code, goods->name, goods->price, goods->number);
+
+	set(db, key, value);
+
 }
 
-void getGoodsSerialize(MYDB*& db, Entity goods) {
+// TODO:   变成运行时反序列化全部键值对，while循环，无返回值，静默运行
+void getGoodsSerialize(MYDB*& db, Node*& node) {
+	Node* nodeTmp = node->next;
+	KV_Node* KVtmp = db->DataBase.KV_list.next;
 
+	while (KVtmp != NULL) {
+		Node* newNode = new Node;
+		Entity* goods = new Entity;
+		char* value = get(db, KVtmp->key);
+		sscanf(value, "id:%d,code:%d,name:%[^,],price:%[^,],number:%d", &goods->id, &goods->code, goods->name, goods->price, &goods->number);
+		KVtmp = KVtmp->next;
+		//写入内存
+
+		newNode->val = *goods;
+		Node* p = node;
+		while (p->next != NULL) {
+			//p指向最后一个节点
+			p = p->next;
+		}
+
+		newNode->next = p->next;
+		newNode->front = p;
+		p->next = newNode;
+
+	}
+}
+
+void updateGoodsSerialize(MYDB*& db, Entity* goods) {
+
+	char key[Max];
+	sprintf(key, "goods_%d", goods->id);
+
+	char value[sizeof(Entity)];
+	sprintf(value, "id:%d,code:%d,name:%s,price:%s,number:%d", goods->id, goods->code, goods->name, goods->price, goods->number);
+
+	update(db, key, value);
+
+}
+
+void deleteGoodsSerialize(MYDB*& db, Entity* goods) {
+	char* goodsName = new char;
+	sprintf(goodsName, "goods_%d", goods->id);
+	del(db, goodsName);
 }

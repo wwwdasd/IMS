@@ -109,8 +109,8 @@ static inline bool addDB(Root*& root, const char* name) {
 	Root* newNode = new Root;
 	char tmpName[NAME_LENGTH];
 	strcpy(tmpName, name);
-	sprintf(tmpName, "%sDB.mydb", name);
-	//sprintf(tmpName, "%sDB.txt", name);
+	//sprintf(tmpName, "%sDB.mydb", name);
+	sprintf(tmpName, "%sDB.txt", name);
 	FILE* file = fopen(tmpName, "a+");
 	strcpy(newNode->DataBase.name, name);
 	newNode->DataBase.file = file;
@@ -136,8 +136,8 @@ static inline Root* openDataBase(Root*& root, const char* DBName) {
 	while (tmp != NULL) {
 		if (!strcmp(tmp->DataBase.name, dbname)) {
 			if (tmp->DataBase.status == 0) {
-				sprintf(dbname, "%sDB.mydb", tmp->DataBase.name);
-				//sprintf(dbname, "%sDB.txt", tmp->DataBase.name);
+				//sprintf(dbname, "%sDB.mydb", tmp->DataBase.name);
+				sprintf(dbname, "%sDB.txt", tmp->DataBase.name);
 				dbFile = fopen(dbname, "a+");
 				tmp->DataBase.status = 1;
 				break;
@@ -289,8 +289,8 @@ static inline bool del(Root*& DB, const char* key) {
 		//Ð´ÈëÎÄ¼þ
 		fclose(DB->DataBase.file);
 		char dbName[NAME_LENGTH];
-		//sprintf(dbName, "%sDB.txt", DB->DataBase.name);
-		sprintf(dbName, "%sDB.mydb", DB->DataBase.name);
+		sprintf(dbName, "%sDB.txt", DB->DataBase.name);
+		//sprintf(dbName, "%sDB.mydb", DB->DataBase.name);
 		FILE* newDBFile = fopen(dbName, "w");
 		DB->DataBase.file = newDBFile;
 		KVtmp = DB->DataBase.KV_list.next;
@@ -338,8 +338,8 @@ static inline bool claer(Root*& DB) {
 	DB->DataBase.KV_list.next = NULL;
 	fclose(DB->DataBase.file);
 	char dbName[NAME_LENGTH];
-	//sprintf(dbName, "%sDB.txt", DB->DataBase.name);
-	sprintf(dbName, "%sDB.mydb", DB->DataBase.name);
+	sprintf(dbName, "%sDB.txt", DB->DataBase.name);
+	//sprintf(dbName, "%sDB.mydb", DB->DataBase.name);
 	FILE* fp = fopen(dbName, "w");
 	fclose(fp);
 	DB->DataBase.file = fopen(dbName, "r");
