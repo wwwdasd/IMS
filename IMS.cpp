@@ -46,7 +46,6 @@ Node* findByName(Node* node,char name[]);
 //用商品编号查询；
 Node* findByCode(Node* node, int code);
 
-
 //修改 复用查询 根据商品编号找到对应商品,成功返回 true 
 bool modifyEntity(Node*& node, int code, MYDB*& db);
 
@@ -74,6 +73,12 @@ void updateGoodsSerialize(MYDB*& db, Entity* goods);
 void deleteGoodsSerialize(MYDB*& db, Entity* goods);
 
 
+
+void undo() {
+
+}
+
+
 int main() {
 	int switchFlag;
 	bool whileFlag=true;
@@ -94,7 +99,7 @@ int main() {
 
 	while (whileFlag) {
 		printf("\t\t商品库存管理系统\n");
-		printf("1: 进货，2：出货，3：修改商品信息，4：查看全部商品，5：查询商品，6: 退出\n");
+		printf("1: 进货，2：出货，3：修改商品信息，4：查看全部商品，5：查询商品，6：删除所有商品，7: 退出\n");
 		scanf("%d", &switchFlag);
 		switch (switchFlag) {
 		case 1:
@@ -123,7 +128,7 @@ int main() {
 
 			break;
 		case 3:
-			printf("请输入要修改商品的编号");
+			printf("请输入要修改商品的编号: ");
 			scanf("%d", &code);
 			modifyEntity(node,code,db);
 			break;
@@ -136,7 +141,13 @@ int main() {
 			showByName(node, name);
 			break;
 		case 6:
+			node->next = NULL;
+			claer(db);
+			printf("success：删除成功");
+			break;
+		case 7:
 			whileFlag = false;
+			closeDB(db);
 			printf("程序退出\n");
 			return 0;
 			break;
@@ -215,13 +226,13 @@ bool addEntity(Node*& node, MYDB*& db) {
 				printf("异常退出，不保存此次新数据");
 				return false;
 			}
-			updateGoodsSerialize(db, &node->val);
+			updateGoodsSerialize(db, val);
 			return true;
 		}
 
 		//只修改找到对象的库存值，其余不变;
 		tmp->val.number = val->number;
-		updateGoodsSerialize(db, &node->val);
+		updateGoodsSerialize(db, &tmp->val);
 		return true;
 	}
 
@@ -237,7 +248,7 @@ bool addEntity(Node*& node, MYDB*& db) {
 	newNode->front = p;
 	p->next = newNode;
 
-	saveGoodsSerialize(db, &node->val);
+	saveGoodsSerialize(db, &newNode->val);
 	return true;
 }
 
@@ -322,7 +333,7 @@ bool modifyEntity(Node*& node, int code, MYDB*& db) {
 	default:
 		break;
 	}
-	updateGoodsSerialize(db, &node->val);
+	updateGoodsSerialize(db, &tmp->val);
 	return true;
 }
 
@@ -371,7 +382,6 @@ bool deleteByindex(Node*& node, int number, MYDB*& db) {
 
 
 
-
 void saveGoodsSerialize(MYDB*& db, Entity* goods) {
 
 	char key[Max];
@@ -384,7 +394,6 @@ void saveGoodsSerialize(MYDB*& db, Entity* goods) {
 
 }
 
-// TODO:   变成运行时反序列化全部键值对，while循环，无返回值，静默运行
 void getGoodsSerialize(MYDB*& db, Node*& node) {
 	Node* nodeTmp = node->next;
 	KV_Node* KVtmp = db->DataBase.KV_list.next;
