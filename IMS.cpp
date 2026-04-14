@@ -6,23 +6,11 @@
 #include<string.h>
 
 #include "myfiledb.h"
+#include "stack.h"
+#include "entity.h"
+
 
 #define Max 100
-
-typedef struct {
-	int id; //商品id仅用作查找，用户不能修改和查看
-	int code; //商品编号 用户只读
-	char name[Max]; //商品名称
-	char price[10];  //价格
-	int number; //库存量
-}Entity;
-
-typedef struct Node{
-	Node* front;
-	Entity val;
-	Node* next;
-};
-typedef struct Node Node;
 
 /*
 基础操作
@@ -30,6 +18,9 @@ typedef struct Node Node;
 
 //初始化双链表
 void initNode(Node*& node);
+
+//获取当前最大id
+int getMaxId(Node* node);
 
 //得到当前商品的唯一编号，所有商品编号都唯一
 int getCode(int length, int id);
@@ -72,6 +63,8 @@ void updateGoodsSerialize(MYDB*& db, Entity* goods);
 //删除实体
 void deleteGoodsSerialize(MYDB*& db, Entity* goods);
 
+Operation* op = new Operation;
+Stack* stack = new Stack;
 
 int main() {
 	int switchFlag;
@@ -91,9 +84,13 @@ int main() {
 
 	getGoodsSerialize(db, node);
 
+	//栈初始化
+
+	initStack(stack);
+
 	while (whileFlag) {
 		printf("\t\t商品库存管理系统\n");
-		printf("1: 进货，2：出货，3：修改商品信息，4：查看全部商品，5：查询商品，6：删除所有商品，7: 退出\n");
+		printf("1: 进货，2：出货，3：修改商品信息，4：查看全部商品，5：查询商品，6：删除所有商品，7:撤销到上一步，8: 退出\n");
 		scanf("%d", &switchFlag);
 		switch (switchFlag) {
 		case 1:
@@ -140,6 +137,13 @@ int main() {
 			printf("success：删除成功");
 			break;
 		case 7:
+			if (undo(stack, node, db)) {
+				printf("撤销成功");
+			} else {
+				printf("撤销失败,已经是最后一步了");
+			}
+			break;
+		case 8:
 			whileFlag = false;
 			closeDB(db);
 			printf("程序退出\n");
@@ -169,7 +173,7 @@ void initNode(Node*& node) {
 
 bool addEntity(Node*& node, MYDB*& db) {
 	//复用getLength 获取最新长度,让id自增；
-	int length = count(db);
+	int length = getMaxId(node);
 	//新的数据和空间
 	Node* newNode =(Node*)malloc(sizeof(Node));
 	Entity* val = new Entity;
@@ -192,7 +196,17 @@ bool addEntity(Node*& node, MYDB*& db) {
 
 	//如果商品名称已存在则只加库存，若价格不一致则询问保留
 	Node* tmp = findByName(node,val->name);
+
+
 	if (tmp!=NULL && !strcmp(val->name, tmp->val.name)) {
+
+		//旧数据压栈
+		op->id = tmp->val.id;
+		op->oldEntity = tmp->val;
+		op->type = UPDATA;
+
+		push(stack, *op);
+
 		printf("该商品已存在，仅增加库存值\n");
 		//如果存在则库存相加
 		val->number = val->number + tmp->val.number;
@@ -220,12 +234,16 @@ bool addEntity(Node*& node, MYDB*& db) {
 				printf("异常退出，不保存此次新数据");
 				return false;
 			}
+			// TODO:   UPDATA的撤销未实现
+
+
 			updateGoodsSerialize(db, val);
 			return true;
 		}
 
 		//只修改找到对象的库存值，其余不变;
 		tmp->val.number = val->number;
+
 		updateGoodsSerialize(db, &tmp->val);
 		return true;
 	}
@@ -241,6 +259,12 @@ bool addEntity(Node*& node, MYDB*& db) {
 	newNode->next = p->next;
 	newNode->front = p;
 	p->next = newNode;
+
+	//入栈
+	op->id = val->id;
+	op->oldEntity = *val;
+	op->type = SAVE;
+	push(stack, *op);
 
 	saveGoodsSerialize(db, &newNode->val);
 	return true;
@@ -292,6 +316,13 @@ int getCode(int length, int id) {
 bool modifyEntity(Node*& node, int code, MYDB*& db) {
 	Entity* val = new Entity;
 	Node* tmp = findByCode(node,code);
+	//旧数据压栈
+	op->id = tmp->val.id;
+	op->oldEntity = tmp->val;
+	op->type = UPDATA;
+
+	push(stack, *op);
+
 	if (tmp==NULL) {
 		printf("为找到该商品，请核对编号后重试\n");
 		return false;
@@ -350,12 +381,24 @@ bool deleteByindex(Node*& node, int number, MYDB*& db) {
 		switch (flag) {
 		case 'Y':
 		case 'y':
+			op->id = node->val.id;
+			op->oldEntity = node->val;
+			op->type = UPDATA;
+
+			push(stack, *op);
+
 			node->val.number = val->number;
 			updateGoodsSerialize(db, &node->val);
 			return true;
 			break;
 		case 'N':
 		case 'n':
+			op->id = node->val.id;
+			op->oldEntity = node->val;
+			op->type = DELETE;
+
+			push(stack, *op);
+
 			node->front->next = node->next;
 			node->next = NULL;
 			deleteGoodsSerialize(db, &node->val);
@@ -367,11 +410,32 @@ bool deleteByindex(Node*& node, int number, MYDB*& db) {
 		}
 		
 	} else {
+
+		op->id = node->val.id;
+		op->oldEntity = node->val;
+		op->type = UPDATA;
+
+		push(stack, *op);
+
 		node->val.number = val->number;
+
 		printf("当前剩余库存：%d", node->val.number);
 		updateGoodsSerialize(db, &node->val);
 		return true;
 	}
+}
+
+int getMaxId(Node* node) {
+	Node* tmp = node->next;
+	int max = 0;
+	while (tmp!=NULL) {
+		if (tmp->val.id>max) {
+			max = tmp->val.id;
+		}
+		tmp = tmp->next;
+	}
+
+	return max;
 }
 
 
@@ -431,3 +495,4 @@ void deleteGoodsSerialize(MYDB*& db, Entity* goods) {
 	sprintf(goodsName, "goods_%d", goods->id);
 	del(db, goodsName);
 }
+

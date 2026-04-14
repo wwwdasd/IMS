@@ -109,8 +109,8 @@ static inline bool addDB(Root*& root, const char* name) {
 	Root* newNode = new Root;
 	char tmpName[NAME_LENGTH];
 	strcpy(tmpName, name);
-	//sprintf(tmpName, "%sDB.mydb", name);
-	sprintf(tmpName, "%sDB.txt", name);
+	sprintf(tmpName, "%sDB.mydb", name);
+	//sprintf(tmpName, "%sDB.txt", name);
 	FILE* file = fopen(tmpName, "a+");
 	strcpy(newNode->DataBase.name, name);
 	newNode->DataBase.file = file;
